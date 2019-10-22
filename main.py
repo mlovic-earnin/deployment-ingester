@@ -9,6 +9,7 @@ import ah_config
 import ah_db
 
 
+schema = 'engineering_metrics'
 deployments_table_name = 'deployments'
 DEPLOYMENTS_TABLE = sqlalchemy.Table(
     deployments_table_name,
@@ -21,6 +22,7 @@ DEPLOYMENTS_TABLE = sqlalchemy.Table(
     sqlalchemy.Column('jenkins_job_name', sqlalchemy.TEXT),
     sqlalchemy.Column('jenkins_build_num', sqlalchemy.INTEGER),
     sqlalchemy.Column('jenkins_event_title', sqlalchemy.TEXT),
+    schema=schema
 )
 
 def parse_jenkins_deploy_job_event(event):
@@ -125,5 +127,7 @@ if __name__ == "__main__":
 
     logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
-    with ah_db.open_db_connection('pg') as conn:
-        ingest_nativeapi_deploys(conn, datetime.datetime.now() - datetime.timedelta(29), datetime.datetime.now())
+    with ah_db.open_db_connection('engineering_metrics') as conn:
+        # TODO logging
+        print("Connected to %s", conn.engine.url.__repr__())
+        ingest_nativeapi_deploys(conn, datetime.datetime.now() - datetime.timedelta(50), datetime.datetime.now())
