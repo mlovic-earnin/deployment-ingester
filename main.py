@@ -42,21 +42,29 @@ def upsert_deploys(conn, deploys):
     res = conn.execute(stmt, deploys)
 
 
-# or tags? which level of abstraction
 def query_jenkins_job_events(job_name, start_time=None, end_time=None):
+    query_datadog_events(
+        tags=[
+            "job:{}".format(job_name),
+            'result:success'
+        ],
+        start_time=start_time,
+        end_time=end_time
+    )
+
+
+def query_datadog_events(tags=[], start_time=None, end_time=None):
     batch_size = 30
     # datadog max is 32
     delta = end_time - start_time
+    # TODO what if smaller?
     if delta <= datetime.timedelta(batch_size):
         print("Querying events for period: start={}; end={}".format(start_time, end_time))
         response = datadog.api.Event.query(
             start=datetime.datetime.timestamp(start_time),
             end=datetime.datetime.timestamp(end_time),
             sources='jenkins',
-            tags=[
-                "job:{}".format(job_name),
-                'result:success'
-            ],
+            tags=tags,
             unaggregated=True
         )
         # TODO handle bad response
@@ -68,13 +76,13 @@ def query_jenkins_job_events(job_name, start_time=None, end_time=None):
         return events
     else:
         last_30_days = query_jenkins_job_events(
-            job_name,
+            tags=tags,
             start_time=(end_time - datetime.timedelta(batch_size)),
             end_time=end_time
         )
         # query rest
         rest = query_jenkins_job_events(
-            job_name,
+            tags=tags,
             start_time=start_time,
             end_time=(end_time - datetime.timedelta(batch_size))
         )
