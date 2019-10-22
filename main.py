@@ -131,18 +131,17 @@ def parse_earnin_standard_deployment_events(event):
 
     return {
         # TODO set timestamp manually in tag from deploy script?
-        # TODO handle missing keys
         "deployed_at":         datetime.datetime.fromtimestamp(event['date_happened'], datetime.timezone.utc),
-        "is_rollback":         (event_tags['deploy.type'] == 'rollback'),
+        "is_rollback":         (event_tags.get('deploy.type') == 'rollback'),
         "jenkins_event_title": event['title'],
         "datadog_event_id":    event['id'],
         # TODO change to "application" I think
-        "artifact":            event_tags['deploy.application'],
-        "initiator":           event_tags['deploy.initiator'],
-        "release_tag":         event_tags['deploy.release'],
-        "jenkins_build_num":   event_tags['deploy.jenkins.build_number'],
-        "jenkins_job_name":    event_tags['deploy.jenkins.job_name'],
-        "jenkins_build_url":   event_tags['deploy.jenkins.build_url'],
+        "artifact":            event_tags.get('deploy.application'),
+        "initiator":           event_tags.get('deploy.initiator'),
+        "release_tag":         event_tags.get('deploy.release'),
+        "jenkins_build_num":   event_tags.get('deploy.jenkins.build_number'),
+        "jenkins_job_name":    event_tags.get('deploy.jenkins.job_name'),
+        "jenkins_build_url":   event_tags.get('deploy.jenkins.build_url'),
     }
 
 def ingest_earnin_standard_deployment_events(conn, start_time, end_time):
