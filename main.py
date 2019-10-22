@@ -69,8 +69,10 @@ def query_datadog_events(tags=[], start_time=None, end_time=None):
             tags=tags,
             unaggregated=True
         )
-        # TODO handle bad response
-        events = response['events']
+        if 'events' in response:
+            events = response['events']
+        else:
+            raise Exception("Unexpected response: {}".format(response))
         for e in events:
             print(e)
         print(events)
