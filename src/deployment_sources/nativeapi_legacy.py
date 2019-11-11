@@ -3,17 +3,15 @@ import datetime
 import datadog_events 
 
 def parse_jenkins_deploy_job_event(event):
-    print(event)
     return {
-        "deployed_at": datetime.datetime.fromtimestamp(event['date_happened'], datetime.timezone.utc),
-        "is_rollback": False,
+        "deployed_at":         datetime.datetime.fromtimestamp(event['date_happened'], datetime.timezone.utc),
+        "is_rollback":         False,
         "jenkins_event_title": event['title'],
-        "datadog_event_id": event['id'],
-        "jenkins_build_num": re.search('build #(\d+) ', event['title']).group(1),
+        "datadog_event_id":    event['id'],
+        "jenkins_build_num":   re.search('build #(\d+) ', event['title']).group(1),
     }
 
 
-events = []
 def query(start_time, end_time):
     napi_job_name = 'nativeapi/prod.jobs/bld-stage-deploy'
     artifact_name = 'nativeapi'
@@ -24,12 +22,11 @@ def query(start_time, end_time):
         start_time=start_time,
         end_time=end_time
     )
-    print(events)
+
     print("Received ({}) events".format(len(events)))
-    if len(events) == 1:
-        print("Exiting")
-        return
+
     deploys = [parse_jenkins_deploy_job_event(event) for event in events]
+
     for deploy in deploys:
         deploy.update({
             "artifact": artifact_name,

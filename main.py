@@ -25,7 +25,7 @@ if __name__ == "__main__":
     logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
     with ah_db.open_db_connection('engineering_metrics') as conn:
-        # TODO logging
+        # TODO Use logging lib instead of print
         print("Connected to %s", conn.engine.url.__repr__())
 
         start = datetime.datetime.now() - datetime.timedelta(50)
