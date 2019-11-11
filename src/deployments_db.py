@@ -1,3 +1,4 @@
+import datetime
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 
@@ -24,7 +25,7 @@ def upsert_deploys(conn, deploys):
     # TODO match on datadog event id instead?
     stmt = stmt.on_conflict_do_nothing(index_elements=['artifact', 'deployed_at'])
     print("Upserting ({}) deployments".format(len(deploys)))
-    [print(d) for d in deploys]
+    # [print(d) for d in deploys]
 
     ingest_time = datetime.datetime.now()
     for deploy in deploys:

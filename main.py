@@ -109,4 +109,6 @@ if __name__ == "__main__":
         # ingest_deployments(conn,
             # query_earnin_standard_deployment_events(start, end)
         # )
-        query_earnin_standard_deployment_events(start, end)
+        deployments_db.upsert_deploys(conn,
+            query_earnin_standard_deployment_events(start, end)
+        )
