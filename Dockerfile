@@ -8,6 +8,8 @@ RUN apt-get update -y && \
 
 RUN pip3 install --upgrade pip
 
+ENV PYTHONIOENCODING=utf-8
+
 WORKDIR /app
 
 COPY ./requirements.txt .
