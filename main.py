@@ -35,12 +35,18 @@ def parse_jenkins_deploy_job_event(event):
         "jenkins_build_num": re.search('build #(\d+) ', event['title']).group(1),
     }
 
+# TODO error or warn or log on col mismatch
 def upsert_deploys(conn, deploys):
     stmt = sqlalchemy.dialects.postgresql.insert(DEPLOYMENTS_TABLE)
     # TODO match on datadog event id instead?
     stmt = stmt.on_conflict_do_nothing(index_elements=['artifact', 'deployed_at'])
     print("Upserting ({}) deployments".format(len(deploys)))
     [print(d) for d in deploys]
+
+    ingest_time = datetime.datetime.now()
+    for deploy in deploys:
+        deploy["ingested_at"] = ingest_time
+
     res = conn.execute(stmt, deploys)
 
 
@@ -60,7 +66,6 @@ def query_datadog_events(tags=[], sources=None, start_time=None, end_time=None):
     batch_size = 30
     # datadog max is 32
     delta = end_time - start_time
-    # TODO what if smaller?
     if delta <= datetime.timedelta(batch_size):
         print("Querying events for period: start={}; end={}".format(start_time, end_time))
         response = datadog.api.Event.query(
@@ -76,7 +81,11 @@ def query_datadog_events(tags=[], sources=None, start_time=None, end_time=None):
             raise Exception("Unexpected response: {}".format(response))
         for e in events:
             print(e)
-        print("({}) events returned in this batch".format(len(events)))
+        # DD creates some "aggregate events" for convenience. We are only interested in real events here.
+        events = [e for e in events if e['is_aggregate'] == False]
+        # Remove duplicates. DD sometimes returns same event twice
+        events = list({e['id']:e for e in events}.values())
+        print("({}) non-aggregate events returned in this batch".format(len(events)))
         return events
     else:
         last_30_days = query_datadog_events(
@@ -107,19 +116,16 @@ def ingest_legacy_nativeapi_deploys(conn, start_time, end_time):
     if len(events) == 1:
         print("Exiting")
         return
-    # DD creates some "aggregate events" for convenience. We are only interested in real events here.
-    deploys = [parse_jenkins_deploy_job_event(event) for event in events if event['is_aggregate'] == False]
-    # Remove duplicates. DD sometimes returns same event twice
-    deploys = list({d['datadog_event_id']:d for d in deploys}.values())
+    deploys = [parse_jenkins_deploy_job_event(event) for event in events]
     for deploy in deploys:
         deploy.update({
             "artifact": artifact_name,
-            "jenkins_job_name": napi_job_name,
-            "ingested_at": ingest_time
+            "jenkins_job_name": napi_job_name
         })
     # TODO error or warn or log on col mismatch
     upsert_deploys(conn, deploys)
 
+# TODO remove plural
 def parse_earnin_standard_deployment_events(event):
     print(event)
     event_tags = dict((tag.split(':', 1)) for tag in event['tags'] if ':' in tag)
@@ -133,6 +139,7 @@ def parse_earnin_standard_deployment_events(event):
         # TODO set timestamp manually in tag from deploy script?
         "deployed_at":         datetime.datetime.fromtimestamp(event['date_happened'], datetime.timezone.utc),
         "is_rollback":         (event_tags.get('deploy.type') == 'rollback'),
+        # TODO this is wrong
         "jenkins_event_title": event['title'],
         "datadog_event_id":    event['id'],
         # TODO change to "application" I think
@@ -144,9 +151,12 @@ def parse_earnin_standard_deployment_events(event):
         "jenkins_build_url":   event_tags.get('deploy.jenkins.build_url'),
     }
 
-def ingest_earnin_standard_deployment_events(conn, start_time, end_time):
-    ingest_time = datetime.datetime.now()
-    # TODO parameterize for dev?
+
+def ingest_deployments(conn, deployments):
+    # TODO this is not necessary...
+    upsert_deploys(conn, deployments)
+
+def query_earnin_standard_deployment_events(start_time, end_time):
     tags = [
         'deploy.environment:production',
         # TODO ingest non-success deploys?
@@ -155,19 +165,8 @@ def ingest_earnin_standard_deployment_events(conn, start_time, end_time):
     events = query_datadog_events(tags=tags,
                                   start_time=start_time,
                                   end_time=end_time)
-    # DD creates some "aggregate events" for convenience. We are only interested in real events here.
-    deploys = [parse_earnin_standard_deployment_events(event) for event in events if event['is_aggregate'] == False]
-    # Remove duplicates. DD sometimes returns same event twice
-    deploys = list({d['datadog_event_id']:d for d in deploys}.values())
-
-    # TODO change parsing code
-    # TODO leave ingested_at to the upsert code
-    for deploy in deploys:
-        deploy.update({
-            "ingested_at": ingest_time
-        })
-    # TODO error or warn or log on col mismatch
-    upsert_deploys(conn, deploys)
+    deploys = [parse_earnin_standard_deployment_events(event) for event in events]
+    return deploys
 
 
 if __name__ == "__main__":
@@ -181,6 +180,10 @@ if __name__ == "__main__":
     with ah_db.open_db_connection('engineering_metrics') as conn:
         # TODO logging
         print("Connected to %s", conn.engine.url.__repr__())
-        # ingest_legacy_nativeapi_deploys(conn, datetime.datetime.now() - datetime.timedelta(50), datetime.datetime.now())
-        # ingest_earnin_standard_deployment_events(conn, datetime.datetime.now() - datetime.timedelta(50), datetime.datetime.now())
-        ingest_earnin_standard_deployment_events(conn, datetime.datetime.now() - datetime.timedelta(1), datetime.datetime.now())
+
+        start = datetime.datetime.now() - datetime.timedelta(50)
+        end   = datetime.datetime.now()
+
+        ingest_deployments(conn,
+            query_earnin_standard_deployment_events(start, end)
+        )
