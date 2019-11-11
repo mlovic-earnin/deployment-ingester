@@ -19,5 +19,7 @@ ARG NEXUS_PASSWORD
 RUN pip3 install -r /app/requirements.txt --extra-index-url http://$NEXUS_USER:$NEXUS_PASSWORD@artifacts.k8s.us-west-2.dev.earnin.com/repository/debug-pypi/simple --trusted-host artifacts.k8s.us-west-2.dev.earnin.com
 
 COPY ./main.py .
+# hack to satisfy dumb ah-config requirement...
+COPY ./config/config.json ./config/service-config/config.json
 
 CMD [ "python3", "main.py" ]
