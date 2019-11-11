@@ -3,29 +3,13 @@ import datetime
 import logging
 import re
 import sqlalchemy
-import sqlalchemy.dialects.postgresql
 import ah_config
 import ah_db
 
 import sys
 sys.path.append('src/')
 import datadog_events 
-
-schema = 'engineering_metrics'
-deployments_table_name = 'deployments'
-DEPLOYMENTS_TABLE = sqlalchemy.Table(
-    deployments_table_name,
-    sqlalchemy.MetaData(),
-    sqlalchemy.Column('artifact', sqlalchemy.TEXT),
-    sqlalchemy.Column('deployed_at', sqlalchemy.TIMESTAMP(timezone=True)),
-    sqlalchemy.Column('ingested_at', sqlalchemy.TIMESTAMP(timezone=True)),
-    sqlalchemy.Column('is_rollback', sqlalchemy.BOOLEAN),
-    sqlalchemy.Column('datadog_event_id', sqlalchemy.TEXT),
-    sqlalchemy.Column('jenkins_job_name', sqlalchemy.TEXT),
-    sqlalchemy.Column('jenkins_build_num', sqlalchemy.INTEGER),
-    sqlalchemy.Column('jenkins_event_title', sqlalchemy.TEXT),
-    schema=schema
-)
+import deployments_db
 
 def parse_jenkins_deploy_job_event(event):
     print(event)
@@ -36,20 +20,6 @@ def parse_jenkins_deploy_job_event(event):
         "datadog_event_id": event['id'],
         "jenkins_build_num": re.search('build #(\d+) ', event['title']).group(1),
     }
-
-# TODO error or warn or log on col mismatch
-def upsert_deploys(conn, deploys):
-    stmt = sqlalchemy.dialects.postgresql.insert(DEPLOYMENTS_TABLE)
-    # TODO match on datadog event id instead?
-    stmt = stmt.on_conflict_do_nothing(index_elements=['artifact', 'deployed_at'])
-    print("Upserting ({}) deployments".format(len(deploys)))
-    [print(d) for d in deploys]
-
-    ingest_time = datetime.datetime.now()
-    for deploy in deploys:
-        deploy["ingested_at"] = ingest_time
-
-    res = conn.execute(stmt, deploys)
 
 
 events = []
@@ -73,7 +43,7 @@ def ingest_legacy_nativeapi_deploys(conn, start_time, end_time):
             "jenkins_job_name": napi_job_name
         })
     # TODO error or warn or log on col mismatch
-    upsert_deploys(conn, deploys)
+    deployments_db.upsert_deploys(conn, deploys)
 
 # TODO remove plural
 def parse_earnin_standard_deployment_events(event):
@@ -104,7 +74,7 @@ def parse_earnin_standard_deployment_events(event):
 
 def ingest_deployments(conn, deployments):
     # TODO this is not necessary...
-    upsert_deploys(conn, deployments)
+    deployments_db.upsert_deploys(conn, deployments)
 
 def query_earnin_standard_deployment_events(start_time, end_time):
     tags = [
