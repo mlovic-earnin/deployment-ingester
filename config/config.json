@@ -1,0 +1,21 @@
+{
+  "database": {
+      "engineering_metrics": {
+        "secret": "rds/dwstaging/engineeringmetricsuser"
+      }
+  },
+  "environment": {
+    "local": {
+      "database": {
+        "engineering_metrics": {
+          "secret": "na",
+          "server": "172.17.0.2",
+          "username": "marko",
+          "password": "",
+          "database": "marko",
+          "engine": "postgres"
+        }
+      }
+    }
+  }
+}
