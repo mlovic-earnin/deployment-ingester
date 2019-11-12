@@ -1,0 +1,50 @@
+# vim: set ft=yaml:
+#
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: deployment-ingester
+spec:
+  schedule: "30 * * * *"
+  suspend: true
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+          annotations:
+            iam.amazonaws.com/role: arn:aws:iam::171679608487:role/RoleDeploymentEventsIngester
+        spec:
+          containers:
+          - name: deployment-ingester
+            image: artifacts.k8s.us-west-2.dev.earnin.com:8082/deployment-ingester:latest
+            volumeMounts:
+              - name: datadog-credentials-volume
+                mountPath: /app/config/service-secret
+                #subPath: datadog-credentials.json
+                #readOnly: true
+            env:
+              - name: AH_CONFIGURATION_ENV
+                value: production
+              - name: AH_CONFIGURATION_DEBUG
+                value: "true"
+              - name: AWS_DEFAULT_REGION
+                value: us-west-2
+            resources:
+              limits:
+                cpu: 300m
+                memory: 500Mi
+              requests:
+                cpu: 200m
+                memory: 200Mi
+          imagePullSecrets:
+          - name: regsecret
+          restartPolicy: Never
+          volumes:
+            - name: datadog-credentials-volume
+              secret:
+                secretName: datadog-credentials
+                #items:
+                  #- key: datadog-credentials
+                    #path: datadog-credentials.json
+
