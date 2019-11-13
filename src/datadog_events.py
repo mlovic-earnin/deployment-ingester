@@ -1,6 +1,9 @@
 import datadog
 import datetime
 
+import logging
+logger = logging.getLogger(__name__)
+
 def initiatilize_datadog(**kwargs):
     datadog.initialize(**kwargs)
 
@@ -10,7 +13,7 @@ def query(tags=[], sources=None, start_time=None, end_time=None):
     batch_size = 30
     delta = end_time - start_time
     if delta <= datetime.timedelta(batch_size):
-        print("Querying events for period: start={}; end={}".format(start_time, end_time))
+        logger.info("Querying events for period: start={}; end={}".format(start_time, end_time))
         response = datadog.api.Event.query(
             start=datetime.datetime.timestamp(start_time),
             end=datetime.datetime.timestamp(end_time),
@@ -23,12 +26,12 @@ def query(tags=[], sources=None, start_time=None, end_time=None):
         else:
             raise Exception("Unexpected response: {}".format(response))
         for e in events:
-            print(e)
+            logger.debug(e)
         # DD creates some "aggregate events" for convenience. We are only interested in real events here.
         events = [e for e in events if e['is_aggregate'] == False]
         # Remove duplicates -- DD sometimes returns the same event twice
         events = list({e['id']:e for e in events}.values())
-        print("({}) non-aggregate events returned in this batch".format(len(events)))
+        logger.info("({}) non-aggregate events returned in this batch".format(len(events)))
         return events
     else:
         last_30_days = query(

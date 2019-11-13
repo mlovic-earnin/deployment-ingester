@@ -15,6 +15,9 @@ import deployment_sources.nativeapi_legacy
 if __name__ == "__main__":
     ah_config.initialize()
 
+    logging.getLogger().setLevel(logging.INFO)
+    logger = logging.getLogger('deployment_ingester')
+
     datadog_events.initiatilize_datadog(
         api_key=ah_config.get("datadog_credentials.api_key"),
         app_key=ah_config.get("datadog_credentials.app_key")
@@ -23,8 +26,7 @@ if __name__ == "__main__":
     logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
     with ah_db.open_db_connection('engineering_metrics') as conn:
-        # TODO Use logging lib instead of print
-        print("Connected to %s", conn.engine.url.__repr__())
+        logger.info("Connected to %s", conn.engine.url.__repr__())
 
         start = datetime.datetime.now() - datetime.timedelta(50)
         end   = datetime.datetime.now()

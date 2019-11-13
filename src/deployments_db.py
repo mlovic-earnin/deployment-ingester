@@ -2,6 +2,9 @@ import datetime
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 
+import logging
+logger = logging.getLogger(__name__)
+
 SCHEMA                 = 'engineering_metrics'
 DEPLOYMENTS_TABLE_NAME = 'deployments'
 DEPLOYMENTS_TABLE      = sqlalchemy.Table(
@@ -24,7 +27,7 @@ def upsert_deploys(conn, deploys):
     stmt = sqlalchemy.dialects.postgresql.insert(DEPLOYMENTS_TABLE)
     # TODO match on datadog event id instead?
     stmt = stmt.on_conflict_do_nothing(index_elements=['artifact', 'deployed_at'])
-    print("Upserting ({}) deployments".format(len(deploys)))
+    logger.info("Upserting ({}) deployments".format(len(deploys)))
 
     ingest_time = datetime.datetime.now()
     for deploy in deploys:

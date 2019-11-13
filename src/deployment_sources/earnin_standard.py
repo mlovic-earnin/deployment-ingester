@@ -5,6 +5,9 @@ by deploy doctor, and that we are trying to standardize on at Earnin."""
 import datetime
 import datadog_events 
 
+import logging
+logger = logging.getLogger(__name__)
+
 def query(start_time, end_time):
     tags = [
         'deploy.environment:production',
@@ -14,6 +17,7 @@ def query(start_time, end_time):
     events = datadog_events.query(tags=tags,
                                   start_time=start_time,
                                   end_time=end_time)
+    logger.info("Received ({}) events".format(len(events)))
 
     deploys = [parse_deployment_event(event) for event in events]
 

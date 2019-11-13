@@ -2,6 +2,9 @@ import re
 import datetime
 import datadog_events 
 
+import logging
+logger = logging.getLogger(__name__)
+
 def parse_jenkins_deploy_job_event(event):
     return {
         "deployed_at":         datetime.datetime.fromtimestamp(event['date_happened'], datetime.timezone.utc),
@@ -22,8 +25,7 @@ def query(start_time, end_time):
         start_time=start_time,
         end_time=end_time
     )
-
-    print("Received ({}) events".format(len(events)))
+    logger.info("Received ({}) events".format(len(events)))
 
     deploys = [parse_jenkins_deploy_job_event(event) for event in events]
 
